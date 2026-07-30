@@ -128,11 +128,11 @@ def fetch_beach_data(beach, user_lat, user_lon, mode="default"):
 # ---------------------------------------------------------------------------
 def get_crowd_badge(crowd):
     colors = {
-        "Quiet": (ft.colors.GREEN_300, ft.colors.GREEN_900),
-        "Moderate": (ft.colors.ORANGE_300, ft.colors.ORANGE_900),
-        "Busy": (ft.colors.RED_300, ft.colors.RED_900)
+        "Quiet": ("#86efac", "#14532d"),
+        "Moderate": ("#fdba74", "#7c2d12"),
+        "Busy": ("#fca5a5", "#7f1d1d")
     }
-    text_color, bg_color = colors.get(crowd, (ft.colors.GREY_400, ft.colors.GREY_900))
+    text_color, bg_color = colors.get(crowd, ("#9ca3af", "#111827"))
     return ft.Container(
         content=ft.Text(crowd, size=11, color=text_color, weight="bold"),
         bgcolor=bg_color,
@@ -177,14 +177,14 @@ class BeachMonitorApp:
         self.tc_dialog = ft.AlertDialog(
             modal=True,
             bgcolor="#161b22",
-            title=ft.Text("Welcome to Beach Monitor \u26f1\ufe0f", weight="bold", color="white"),
+            title=ft.Text("Welcome to Beach Monitor 🏖️", weight="bold", color="white"),
             content=ft.Text(
                 "Before we dive in, we need to access your rough network location to calculate distance to nearby beaches. "
                 "By continuing, you accept our Terms of Service & Privacy Policy.",
                 color="#8b949e"
             ),
             actions=[
-                ft.TextButton("Read Terms", on_click=open_terms_link, icon=ft.icons.OPEN_IN_NEW),
+                ft.TextButton("Read Terms", on_click=open_terms_link, icon="open_in_new"),
                 ft.ElevatedButton("Accept & Continue", on_click=accept_terms, bgcolor="#5b8cff", color="white"),
             ],
             actions_alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -195,31 +195,27 @@ class BeachMonitorApp:
 
     def start_app_logic(self):
         """Runs only after T&C are accepted."""
-        # 1. Fetch user's actual location
-        self.show_snackbar("Locating you...", icon=ft.icons.LOCATION_SEARCHING, color=ft.colors.BLUE_400)
+        self.show_snackbar("Locating you...", icon="location_searching", color="#60a5fa")
         self.user_lat, self.user_lon = get_user_location()
-        
-        # 2. Start initial data load in background
         threading.Thread(target=self.background_loop, daemon=True).start()
 
     def build_ui(self):
-        # 1. Native App Bar
+        # Native App Bar
         self.page.appbar = ft.AppBar(
             title=ft.Text("Beach Monitor", weight="bold", color="#5b8cff"),
             center_title=False,
             bgcolor="#161b22",
             actions=[
                 ft.IconButton(
-                    icon=ft.icons.REFRESH_ROUNDED, 
+                    icon="refresh", 
                     tooltip="Refresh Data", 
                     on_click=self.manual_refresh,
                     icon_color="#5b8cff"
                 ),
-                ft.Container(width=10) # Right padding
+                ft.Container(width=10)
             ],
         )
 
-        # 2. Controls (Mode, Search, Sort)
         controls_container = ft.Container(
             padding=ft.padding.only(left=16, right=16, top=16, bottom=8),
             content=ft.Column([
@@ -228,17 +224,14 @@ class BeachMonitorApp:
             ], spacing=12)
         )
 
-        # 3. Progress Bar (Hidden by default)
         self.progress_bar = ft.ProgressBar(color="#5b8cff", bgcolor="#161b22", visible=False)
 
-        # 4. List View for Cards
         self.cards_list = ft.ListView(
             expand=True,
             spacing=16,
             padding=ft.padding.all(16)
         )
 
-        # Assemble Page layout
         self.page.add(
             ft.SafeArea(
                 ft.Column([
@@ -275,7 +268,7 @@ class BeachMonitorApp:
             bgcolor="#161b22",
             border_color="#30363d",
             border_radius=8,
-            prefix_icon=ft.icons.SEARCH_ROUNDED,
+            prefix_icon="search",
         )
 
     def build_sort_dropdown(self):
@@ -296,11 +289,11 @@ class BeachMonitorApp:
             on_change=self.on_sort_change
         )
 
-    def show_snackbar(self, message, icon=ft.icons.CHECK_CIRCLE, color=ft.colors.GREEN_400):
+    def show_snackbar(self, message, icon="check_circle_outline", color="#4ade80"):
         self.page.snack_bar = ft.SnackBar(
             content=ft.Row([
                 ft.Icon(icon, color=color),
-                ft.Text(message, color=ft.colors.WHITE)
+                ft.Text(message, color="white")
             ]),
             bgcolor="#161b22",
             behavior=ft.SnackBarBehavior.FLOATING,
@@ -339,21 +332,19 @@ class BeachMonitorApp:
 
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
-                # Passing user's dynamic location to the fetcher
                 futures = [pool.submit(fetch_beach_data, beach, self.user_lat, self.user_lon, self.active_mode) for beach in BEACHES]
                 self.all_data = [f.result() for f in concurrent.futures.as_completed(futures)]
             
             timestamp = time.strftime("%I:%M %p")
             self.show_snackbar(f"Live data updated at {timestamp}")
         except Exception:
-            self.show_snackbar("Network error. Could not update.", icon=ft.icons.ERROR, color=ft.colors.RED_400)
+            self.show_snackbar("Network error. Could not update.", icon="error_outline", color="#f87171")
         finally:
             self.is_loading = False
             self.progress_bar.visible = False
             self.render_cards()
 
     def background_loop(self):
-        # Initial load immediately, then every X seconds without blocking
         self.fetch_all_data()
         while True:
             time.sleep(REFRESH_SECONDS)
@@ -371,12 +362,11 @@ class BeachMonitorApp:
 
         self.cards_list.controls.clear()
 
-        # Handle Empty State
         if not filtered:
             self.cards_list.controls.append(
                 ft.Container(
                     content=ft.Column([
-                        ft.Icon(ft.icons.SEARCH_OFF_ROUNDED, size=50, color="#30363d"),
+                        ft.Icon("search_off", size=50, color="#30363d"),
                         ft.Text("No beaches match your search.", color="#7c8698", size=16)
                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                     alignment=ft.alignment.center,
@@ -386,7 +376,6 @@ class BeachMonitorApp:
             self.page.update()
             return
 
-        # Render Data Cards
         for data in filtered:
             score_color = "#2ecc71" if data["score"] >= 70 else ("#ff5f5f" if data["score"] < 45 else "#e8ebf1")
 
@@ -410,22 +399,20 @@ class BeachMonitorApp:
                     ft.Divider(color="#21262d", height=16),
 
                     ft.Row([
-                        # Left block: Location and Weather
                         ft.Column([
                             ft.Row([
-                                ft.Icon(ft.icons.LOCATION_ON_ROUNDED, size=16, color="#5b8cff"),
+                                ft.Icon("location_on", size=16, color="#5b8cff"),
                                 ft.Text(f"{data['distance']} km away", size=13, color="#8b949e"),
                             ], spacing=6),
                             ft.Row([
-                                ft.Icon(ft.icons.THERMOSTAT_ROUNDED, size=16, color="#ff7b72"),
+                                ft.Icon("thermostat", size=16, color="#ff7b72"),
                                 ft.Text(f"{data['temp']}°C" if data['temp'] else "N/A", size=13, color="#8b949e"),
-                                ft.Container(width=4), # spacer
-                                ft.Icon(ft.icons.AIR_ROUNDED, size=16, color="#a5d6ff"),
+                                ft.Container(width=4),
+                                ft.Icon("air", size=16, color="#a5d6ff"),
                                 ft.Text(f"{data['wind']} km/h" if data['wind'] else "N/A", size=13, color="#8b949e"),
                             ], spacing=6),
                         ], spacing=8),
                         
-                        # Right block: Badge
                         get_crowd_badge(data["crowd"])
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.END)
                 ], spacing=4)
@@ -434,6 +421,5 @@ class BeachMonitorApp:
 
         self.page.update()
 
-# Run Application
 if __name__ == "__main__":
     ft.app(target=lambda page: BeachMonitorApp(page))
